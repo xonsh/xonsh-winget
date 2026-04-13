@@ -260,10 +260,10 @@ def build(ctx, ver, arch, pyver):
     python_exe = str(xonsh_dist / 'python.exe')
     $[@(python_exe) @(str(get_pip)) --no-warn-script-location --quiet]
 
-    # 4. Install xonsh[full]
+    # 4. Install xonsh[full] + setuptools/wheel (needed for xpip install from sdist)
     click.echo(f'[4/5] Installing xonsh=={ver}...')
     xonsh_spec = f'xonsh[full]=={ver}'
-    $[@(python_exe) -m pip install @(xonsh_spec) --no-warn-script-location --quiet]
+    $[@(python_exe) -m pip install setuptools wheel click pyyaml @(xonsh_spec) --no-warn-script-location --quiet]
 
     # 5. Download license
     click.echo('[5/5] Finalizing...')
