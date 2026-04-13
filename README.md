@@ -13,7 +13,7 @@ The pipeline bundles xonsh into a portable Python distribution (via the official
 
 The instructions will be added after xonsh 0.23.0 release.
 
-## Built
+## Build
 
 ### Prerequisites
 
