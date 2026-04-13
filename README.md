@@ -12,44 +12,31 @@ The pipeline bundles xonsh into a portable Python distribution (via the official
 
 ## Prerequisites
 
-| Tool | Required for | Install |
-|---|---|---|
-| **Python 3.11+** | everything | https://www.python.org/downloads/ |
-| **xonsh** | running `build.xsh` | `pip install xonsh` |
-| **click** | CLI framework | `pip install click` |
-| **Jinja2** | template rendering | `pip install jinja2` |
-| **Inno Setup 6** | `installer` command | [Download](https://github.com/jrsoftware/issrc/releases/download/is-6_7_1/innosetup-6.7.1.exe) / [All releases](https://jrsoftware.org/isdl.php) |
-| **winget CLI** | `validate` command | Ships with Windows 11 / App Installer |
+First of all to build Xonsh WinGet install Git, Python 3.11+ and Inno Setup 6 ([Download](https://github.com/jrsoftware/issrc/releases/download/is-6_7_1/innosetup-6.7.1.exe) / [All releases](https://jrsoftware.org/isdl.php)).
 
-Install all Python dependencies at once:
+Then install all Python dependencies:
 
 ```bash
+git clone https://github.com/xonsh/xonsh-winget
+cd xonsh-winget
 pip install -e .
-```
-
-Or manually:
-
-```bash
-pip install xonsh click jinja2
 ```
 
 ## Quick start
 
 ```bash
+# Check system info
+xonsh build.xsh info
+
 # Full pipeline — builds distribution, creates installer, generates manifests
-xonsh build.xsh all --version 0.22.8
+xonsh build.xsh all --version 0.22.8  # Build release.
+xonsh build.xsh all --git  # Build latest commit from xonsh/xonsh repository.
 
 # Or step by step:
 xonsh build.xsh build     --version 0.22.8          # Python embed + xonsh
 xonsh build.xsh installer --version 0.22.8          # Inno Setup
 xonsh build.xsh manifest  --version 0.22.8          # winget YAML
 xonsh build.xsh validate  --version 0.22.8          # winget validate
-```
-
-Check your environment first:
-
-```bash
-xonsh build.xsh info
 ```
 
 ## Commands
