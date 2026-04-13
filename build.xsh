@@ -292,15 +292,16 @@ def build(ctx, ver, arch, pyver, use_git):
         urllib.request.urlretrieve(GET_PIP_URL, str(get_pip))
     python_exe = str(xonsh_dist / 'python.exe')
     $[@(python_exe) @(str(get_pip)) --no-warn-script-location --quiet]
+    $[@(python_exe) -m pip install setuptools wheel click pyyaml --no-warn-script-location --quiet]
 
-    # 4. Install xonsh[full] + setuptools/wheel (needed for xpip install from sdist)
+    # 4. Install xonsh[full]
     if use_git:
         click.echo(f'[4/5] Installing xonsh from git...')
         xonsh_spec = 'xonsh[full] @ git+https://github.com/xonsh/xonsh.git@main'
     else:
         click.echo(f'[4/5] Installing xonsh=={ver}...')
         xonsh_spec = f'xonsh[full]=={ver}'
-    $[@(python_exe) -m pip install setuptools wheel click pyyaml @(xonsh_spec) --no-warn-script-location --quiet]
+    $[@(python_exe) -m pip install @(xonsh_spec) --no-warn-script-location --quiet]
 
     # 5. Fix scripts and finalize
     click.echo('[5/5] Finalizing...')

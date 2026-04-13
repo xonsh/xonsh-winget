@@ -11,6 +11,9 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.build-installer.outputs.version }}
+      unsigned-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
 
     steps:
       - uses: actions/checkout@v4
@@ -26,6 +29,7 @@ jobs:
         run: choco install innosetup -y
 
       - name: Build installer
+        id: build-installer
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = "release" ]; then
@@ -36,23 +40,71 @@ jobs:
           xonsh build.xsh build --version "$VERSION"
           xonsh build.xsh installer --version "$VERSION"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Generate winget manifests
-        shell: bash
-        run: xonsh build.xsh manifest --version "$VERSION"
+      - name: Upload unsigned installer
+        id: upload-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: xonsh-win-x64-setup-unsigned
+          path: dist/xonsh-*-setup.exe
 
-      - name: Upload to release
-        if: github.event_name == 'release'
-        run: gh release upload "${{ github.event.release.tag_name }}" dist/xonsh-${{ env.VERSION }}-win-x64-setup.exe --clobber
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  sign:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
 
-      - name: Upload installer artifact
-        if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Sign installer
+        id: sign
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: xonsh-winget
+          signing-policy-slug: release-signing
+          github-artifact-id: ${{ needs.build.outputs.unsigned-artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed/
+
+      - name: Upload signed installer
         uses: actions/upload-artifact@v4
         with:
           name: xonsh-win-x64-setup
-          path: dist/xonsh-*-setup.exe
+          path: signed/
+
+      - name: Upload to release
+        if: github.event_name == 'release'
+        run: gh release upload "${{ github.ref_name }}" signed/xonsh-*-setup.exe --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+
+  manifests:
+    needs: [build, sign]
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install .
+
+      - name: Download signed installer
+        uses: actions/download-artifact@v4
+        with:
+          name: xonsh-win-x64-setup
+          path: dist/
+
+      - name: Generate winget manifests
+        shell: bash
+        run: xonsh build.xsh manifest --version "${{ needs.build.outputs.version }}"
 
       - name: Upload manifest artifact
         uses: actions/upload-artifact@v4
