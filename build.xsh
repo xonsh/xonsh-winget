@@ -122,6 +122,30 @@ def _find_iscc():
     return None
 
 
+def _fix_scripts(scripts_dir):
+    """Replace pip .exe launchers with relocatable .cmd wrappers.
+
+    pip hardcodes the absolute build-time path to python.exe inside
+    the .exe launchers it creates in Scripts/.  After the distribution
+    is moved to another machine (via the installer), those paths are
+    wrong and every launcher fails with "Unable to create process".
+
+    We replace them with .cmd files that use %~dp0 (the directory of
+    the .cmd itself) to locate python.exe via a relative path.
+    """
+    wrappers = {
+        'xonsh':  '-m xonsh',
+        'pip':    '-m pip',
+        'xpip':   '-m xonsh.xpip',
+    }
+    for name, args in wrappers.items():
+        exe = scripts_dir / f'{name}.exe'
+        if exe.exists():
+            exe.unlink()
+        cmd = scripts_dir / f'{name}.cmd'
+        cmd.write_text(f'@"%~dp0..\\python.exe" {args} %*\r\n', encoding='utf-8')
+
+
 def _generate_iss(version, arch, source_dir, output_dir, output_name):
     """Render Inno Setup .iss script from template."""
     license_file = source_dir / 'license.txt'
@@ -198,15 +222,24 @@ def cli():
 @click.option('--python-version', 'pyver', default=DEFAULT_PYTHON_VER,
               show_default=True,
               help='Python version for the embeddable package.')
+@click.option('--git', 'use_git', is_flag=True, default=False,
+              help='Install xonsh from latest commit on main (xonsh/xonsh).')
 @click.pass_context
-def build(ctx, ver, arch, pyver):
+def build(ctx, ver, arch, pyver, use_git):
     """Build xonsh distribution using Python embeddable package.
 
     Downloads the official Python embeddable zip from python.org, enables
     pip and site-packages, then installs xonsh[full].  The result is a
     fully functional Python+xonsh distribution where `xpip install` works.
+
+    Use --git to build from the latest commit on xonsh/xonsh main branch
+    instead of a PyPI release.
     """
-    if ver is None:
+    if use_git:
+        if ver is None:
+            ver = 'dev'
+        click.echo(f'  Installing from git (xonsh/xonsh main)')
+    elif ver is None:
         click.echo('Fetching latest xonsh version from PyPI...')
         ver = _get_latest_version()
         click.echo(f'  Latest version: {ver}')
@@ -261,12 +294,20 @@ def build(ctx, ver, arch, pyver):
     $[@(python_exe) @(str(get_pip)) --no-warn-script-location --quiet]
 
     # 4. Install xonsh[full] + setuptools/wheel (needed for xpip install from sdist)
-    click.echo(f'[4/5] Installing xonsh=={ver}...')
-    xonsh_spec = f'xonsh[full]=={ver}'
+    if use_git:
+        click.echo(f'[4/5] Installing xonsh from git...')
+        xonsh_spec = 'xonsh[full] @ git+https://github.com/xonsh/xonsh.git@main'
+    else:
+        click.echo(f'[4/5] Installing xonsh=={ver}...')
+        xonsh_spec = f'xonsh[full]=={ver}'
     $[@(python_exe) -m pip install setuptools wheel click pyyaml @(xonsh_spec) --no-warn-script-location --quiet]
 
-    # 5. Download license
+    # 5. Fix scripts and finalize
     click.echo('[5/5] Finalizing...')
+    scripts_dir = xonsh_dist / 'Scripts'
+    _fix_scripts(scripts_dir)
+    click.echo('  Replaced .exe launchers with relocatable .cmd wrappers')
+
     license_file = xonsh_dist / 'license.txt'
     if not license_file.exists():
         try:
