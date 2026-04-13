@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.{{ manifest_version }}.schema.json
+PackageIdentifier: {{ package_id }}
+PackageVersion: "{{ version }}"
+PackageLocale: en-US
+Publisher: Xonsh
+PublisherUrl: https://xon.sh
+PublisherSupportUrl: https://github.com/xonsh/xonsh/issues
+PackageName: Xonsh
+PackageUrl: https://xon.sh
+License: BSD-2-Clause
+LicenseUrl: https://github.com/xonsh/xonsh/blob/main/license
+ShortDescription: Xonsh is a Python-powered shell.
+Description: |-
+  Xonsh (sounds like "consh") is a modern, full-featured and cross-platform
+  Python-based shell. The language is a superset of Python 3 with seamless
+  integration of shell functionality and commands. Xonsh is meant for the
+  daily use of experts and novices.
+Moniker: xonsh
+Tags:
+  - shell
+  - python
+  - terminal
+  - command-line
+  - cli
+  - scripting
+ReleaseNotesUrl: https://github.com/xonsh/xonsh/releases/tag/{{ version }}
+ManifestType: defaultLocale
+ManifestVersion: {{ manifest_version }}

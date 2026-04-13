@@ -1,0 +1,61 @@
+name: Build & Upload Installer
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install .
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build installer
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            VERSION=$(python -c "import urllib.request, json; print(json.loads(urllib.request.urlopen('https://pypi.org/pypi/xonsh/json').read())['info']['version'])")
+          fi
+          xonsh build.xsh build --version "$VERSION"
+          xonsh build.xsh installer --version "$VERSION"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Generate winget manifests
+        shell: bash
+        run: xonsh build.xsh manifest --version "$VERSION"
+
+      - name: Upload to release
+        if: github.event_name == 'release'
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/xonsh-${{ env.VERSION }}-win-x64-setup.exe --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload installer artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: xonsh-win-x64-setup
+          path: dist/xonsh-*-setup.exe
+
+      - name: Upload manifest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: winget-manifests
+          path: manifests/

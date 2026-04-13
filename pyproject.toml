@@ -1,0 +1,17 @@
+[project]
+name = "xonsh-winget"
+version = "0.1.0"
+description = "Build system for creating a winget package for the xonsh shell"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+
+dependencies = [
+    "xonsh>=0.18",
+    "click>=8.0",
+    "jinja2>=3.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends._legacy:_Backend"

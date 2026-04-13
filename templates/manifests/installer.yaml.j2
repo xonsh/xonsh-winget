@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.{{ manifest_version }}.schema.json
+PackageIdentifier: {{ package_id }}
+PackageVersion: "{{ version }}"
+Platform:
+  - Windows.Desktop
+MinimumOSVersion: 10.0.0.0
+InstallerType: inno
+Scope: user
+InstallModes:
+  - interactive
+  - silent
+  - silentWithProgress
+InstallerSwitches:
+  Silent: /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
+  SilentWithProgress: /SILENT /SUPPRESSMSGBOXES /NORESTART /SP-
+UpgradeBehavior: install
+Installers:
+  - Architecture: {{ arch }}
+    InstallerUrl: {{ url }}
+    InstallerSha256: {{ sha256 }}
+ManifestType: installer
+ManifestVersion: {{ manifest_version }}
