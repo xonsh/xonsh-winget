@@ -157,26 +157,6 @@ xonsh build.xsh info
 
 `xpip install lolcat` works because `Lib\site-packages\` is writable.
 
-## Submitting to winget-pkgs
-
-After building, follow these steps to submit the package:
-
-1. **Upload the installer** to a stable HTTPS location (e.g., GitHub Releases)
-2. **Re-generate manifests** with the correct `--url` if needed
-3. **Fork** [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs)
-4. **Copy** the manifest directory into your fork:
-   ```
-   manifests/x/xonsh/xonsh/<version>/
-   ```
-5. **Validate** locally: `winget validate manifests/x/xonsh/xonsh/<version>/`
-6. **Test in Windows Sandbox** (optional but recommended):
-   ```powershell
-   # From winget-pkgs repo clone
-   .\Tools\SandboxTest.ps1 manifests\x\xonsh\xonsh\<version>
-   ```
-7. **Open a PR** against `microsoft/winget-pkgs`
-8. Wait for automated validation (Azure Pipelines) and moderator review
-
 
 ## See also
 
