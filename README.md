@@ -27,7 +27,7 @@ cd xonsh-winget
 pip install -e .
 ```
 
-### Quick start
+### Use build tool
 
 ```bash
 # Check system info
