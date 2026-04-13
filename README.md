@@ -1,3 +1,7 @@
+<p align="center">
+    <img src="./xonsh-winget-pic.png" width='100px'>
+</p>
+
 # xonsh-winget
 
 Build system for creating a [winget](https://learn.microsoft.com/windows/package-manager/) package for the [xonsh](https://xon.sh) shell.
