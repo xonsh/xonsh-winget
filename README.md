@@ -9,8 +9,13 @@ Build system for creating a [winget](https://learn.microsoft.com/windows/package
 
 The pipeline bundles xonsh into a portable Python distribution (via the official [Python embeddable package](https://docs.python.org/3/using/windows.html#the-embeddable-package) + Inno Setup) and generates multi-file winget manifest YAML ready for submission to [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs).
 
+## Install xonsh from WinGet
 
-## Prerequisites
+The instructions will be added after xonsh 0.23.0 release.
+
+## Built
+
+### Prerequisites
 
 First of all to build Xonsh WinGet install Git, Python 3.11+ and Inno Setup 6 ([Download](https://github.com/jrsoftware/issrc/releases/download/is-6_7_1/innosetup-6.7.1.exe) / [All releases](https://jrsoftware.org/isdl.php)).
 
@@ -22,7 +27,7 @@ cd xonsh-winget
 pip install -e .
 ```
 
-## Quick start
+### Quick start
 
 ```bash
 # Check system info
@@ -39,9 +44,9 @@ xonsh build.xsh manifest  --version 0.22.8          # winget YAML
 xonsh build.xsh validate  --version 0.22.8          # winget validate
 ```
 
-## Commands
+### Commands
 
-### `build`
+#### `build`
 
 Builds a xonsh distribution based on the Python embeddable package.
 
@@ -58,7 +63,7 @@ The result is a **fully functional Python environment**. After installation user
 
 If `--version` is omitted, the latest version is fetched from PyPI.
 
-### `installer`
+#### `installer`
 
 Creates a Windows installer using Inno Setup.
 
@@ -74,7 +79,7 @@ xonsh build.xsh installer --version VER [--arch x64|x86]
 
 Requires Inno Setup 6 to be installed. The script auto-detects `ISCC.exe` in standard locations.
 
-### `manifest`
+#### `manifest`
 
 Generates winget manifest files in multi-file format.
 
@@ -86,7 +91,7 @@ xonsh build.xsh manifest --version VER [--arch x64|x86] [--installer-path FILE] 
 - Computes SHA256 of the installer automatically
 - `--url` defaults to `https://github.com/xonsh/xonsh/releases/download/<ver>/xonsh-<ver>-win-<arch>-setup.exe`
 
-### `validate`
+#### `validate`
 
 Validates generated manifests against the winget schema.
 
@@ -96,7 +101,7 @@ xonsh build.xsh validate --version VER
 
 Runs `winget validate` on the manifest directory. Requires the winget CLI.
 
-### `all`
+#### `all`
 
 Full pipeline: `build` -> `installer` -> `manifest` -> `validate`.
 
@@ -104,7 +109,7 @@ Full pipeline: `build` -> `installer` -> `manifest` -> `validate`.
 xonsh build.xsh all [--version VER] [--arch x64|x86] [--url URL]
 ```
 
-### `clean`
+#### `clean`
 
 Removes all build artifacts (`build/`, `dist/`, `manifests/`).
 
@@ -112,7 +117,7 @@ Removes all build artifacts (`build/`, `dist/`, `manifests/`).
 xonsh build.xsh clean
 ```
 
-### `info`
+#### `info`
 
 Shows build environment and checks prerequisites.
 
@@ -120,7 +125,7 @@ Shows build environment and checks prerequisites.
 xonsh build.xsh info
 ```
 
-## What each step does
+### What each step does
 
 1. **build** — Downloads the Python embeddable package, enables `site-packages`, installs pip and `xonsh[full]`. The result is a real Python environment where `xpip install` works.
 
@@ -135,7 +140,7 @@ xonsh build.xsh info
    - `Xonsh.Xonsh.locale.en-US.yaml` (metadata, tags, description)
    - `Xonsh.Xonsh.installer.yaml` (download URL, SHA256, install switches)
 
-### What the user gets after `winget install xonsh`
+#### What the user gets after `winget install xonsh`
 
 ```
 %LOCALAPPDATA%\Programs\xonsh\
@@ -183,8 +188,3 @@ xonsh build.xsh info
 - [Inno Setup documentation](https://jrsoftware.org/ishelp/)
 - [Python embeddable package](https://docs.python.org/3/using/windows.html#the-embeddable-package) — official minimal Python distribution
 - [get-pip.py](https://pip.pypa.io/en/stable/installation/#ensurepip) — pip bootstrap installer
-
-### xonsh
-- [xonsh documentation](https://xon.sh)
-- [xonsh/xonsh GitHub](https://github.com/xonsh/xonsh)
-- [xonsh on PyPI](https://pypi.org/project/xonsh/)
