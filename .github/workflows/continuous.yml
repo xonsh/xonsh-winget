@@ -1,5 +1,6 @@
-# Continuous build: poll xonsh/xonsh main and, whenever it has a new commit,
-# build an installer and update the "continuous" pre-release.
+# Continuous build: once per day, poll xonsh/xonsh main and, if there is a new
+# commit since the last build, build an installer and update the "continuous"
+# pre-release.
 #
 # This keeps a single rolling release at
 # https://github.com/<owner>/xonsh-winget/releases/tag/continuous
@@ -11,8 +12,8 @@ name: Continuous build
 
 on:
   schedule:
-    # Every hour.  GitHub may delay or skip runs under load.
-    - cron: "0 * * * *"
+    # Once per day at 03:00 UTC.  GitHub may delay or skip runs under load.
+    - cron: "0 3 * * *"
   workflow_dispatch:
 
 permissions:
@@ -142,7 +143,7 @@ jobs:
           **inno5 (py313)** — for Windows 8.1+ (Python 3.13)."
 
           gh release create continuous \
-            --title "Continuous build (xonsh main @ ${SHORT})" \
+            --title "Daily build (xonsh main @ ${SHORT})" \
             --notes "$BODY" \
             --prerelease \
             --target "${{ github.sha }}" \
