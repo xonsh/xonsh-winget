@@ -1,0 +1,149 @@
+# Continuous build: poll xonsh/xonsh main and, whenever it has a new commit,
+# build an installer and update the "continuous" pre-release.
+#
+# This keeps a single rolling release at
+# https://github.com/<owner>/xonsh-winget/releases/tag/continuous
+# that always points to the latest xonsh main commit.
+#
+# Can also be triggered manually via Actions -> "Continuous build" -> Run workflow.
+
+name: Continuous build
+
+on:
+  schedule:
+    # Every hour.  GitHub may delay or skip runs under load.
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.head.outputs.sha }}
+      short-sha: ${{ steps.head.outputs.short-sha }}
+      skip: ${{ steps.check.outputs.skip }}
+
+    steps:
+      - name: Get xonsh/xonsh HEAD SHA
+        id: head
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHA=$(gh api repos/xonsh/xonsh/commits/main --jq '.sha')
+          SHORT="${SHA:0:7}"
+          echo "sha=$SHA"      >> "$GITHUB_OUTPUT"
+          echo "short-sha=$SHORT" >> "$GITHUB_OUTPUT"
+          echo "xonsh/xonsh HEAD: $SHA"
+
+      - name: Check if this commit was already built
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          # The continuous release body stores the last-built SHA.
+          # Skip the build if it matches.  workflow_dispatch always builds.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          BODY=$(gh release view continuous --json body --jq '.body' 2>/dev/null || echo "")
+          if echo "$BODY" | grep -q "${{ steps.head.outputs.sha }}"; then
+            echo "No new commit since last build — skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: check
+    if: needs.check.outputs.skip != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - inno: "6"
+            python: "3.14.3"
+            variant: "inno6"
+            extra-args: "--include-inno-tag"
+          - inno: "5"
+            python: "3.13.1"
+            variant: "inno5"
+            extra-args: "--include-python-tag --include-inno-tag"
+
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install .
+
+      - name: Install Inno Setup 6
+        if: matrix.inno == '6'
+        run: choco install innosetup -y
+
+      - name: Install Inno Setup 5
+        if: matrix.inno == '5'
+        shell: pwsh
+        run: |
+          $url = "https://files.jrsoftware.org/is/5/innosetup-5.6.1.exe"
+          $exe = "$env:RUNNER_TEMP\innosetup5.exe"
+          Invoke-WebRequest -Uri $url -OutFile $exe
+          Start-Process -FilePath $exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-' -Wait
+
+      - name: Build installer from xonsh main
+        shell: bash
+        run: |
+          VERSION="dev-${{ needs.check.outputs.short-sha }}"
+          xonsh build.xsh build --git --version "$VERSION" --python-version "${{ matrix.python }}"
+          xonsh build.xsh installer --version "$VERSION" --inno-version "${{ matrix.inno }}" ${{ matrix.extra-args }}
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: xonsh-continuous-${{ matrix.variant }}
+          path: dist/xonsh-*-setup.exe
+
+  release:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all installers
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          pattern: xonsh-continuous-*
+          merge-multiple: true
+
+      - name: Update continuous release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ needs.check.outputs.sha }}
+          SHORT: ${{ needs.check.outputs.short-sha }}
+        run: |
+          # Delete the old tag+release so we get a fresh one pointing at the current workflow commit.
+          gh release delete continuous --yes --cleanup-tag 2>/dev/null || true
+
+          BODY="Automated build of [xonsh/xonsh@${SHORT}](https://github.com/xonsh/xonsh/commit/${SHA}).
+
+          Built at ${SHA}
+
+          **inno6** — for Windows 10/11 (Python 3.14).
+          **inno5 (py313)** — for Windows 8.1+ (Python 3.13)."
+
+          gh release create continuous \
+            --title "Continuous build (xonsh main @ ${SHORT})" \
+            --notes "$BODY" \
+            --prerelease \
+            --target "${{ github.sha }}" \
+            artifacts/*.exe

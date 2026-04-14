@@ -28,7 +28,7 @@ jobs:
         shell: bash
         run: |
           xonsh build.xsh build --git --version dev
-          xonsh build.xsh installer --version dev
+          xonsh build.xsh installer --version dev --include-inno-tag
 
       - name: Upload installer
         uses: actions/upload-artifact@v4

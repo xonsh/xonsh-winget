@@ -10,10 +10,27 @@ permissions:
 
 jobs:
   build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Inno Setup 6 + latest Python — main build for Windows 10/11.
+          # This one gets signed and used for the winget manifest.
+          - inno: "6"
+            python: "3.14.3"
+            variant: "inno6"
+            extra-args: ""
+          # Inno Setup 5 + Python 3.13 — legacy build for Windows 8.1.
+          # Python 3.13 is the last version supporting Windows 8.1.
+          # https://docs.python.org/3.13/using/windows.html
+          - inno: "5"
+            python: "3.13.1"
+            variant: "inno5"
+            extra-args: "--include-python-tag --include-inno-tag"
+
     runs-on: windows-latest
     outputs:
       version: ${{ steps.build-installer.outputs.version }}
-      unsigned-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
 
     steps:
       - uses: actions/checkout@v4
@@ -25,8 +42,18 @@ jobs:
       - name: Install dependencies
         run: pip install .
 
-      - name: Install Inno Setup
+      - name: Install Inno Setup 6
+        if: matrix.inno == '6'
         run: choco install innosetup -y
+
+      - name: Install Inno Setup 5
+        if: matrix.inno == '5'
+        shell: pwsh
+        run: |
+          $url = "https://files.jrsoftware.org/is/5/innosetup-5.6.1.exe"
+          $exe = "$env:RUNNER_TEMP\innosetup5.exe"
+          Invoke-WebRequest -Uri $url -OutFile $exe
+          Start-Process -FilePath $exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-' -Wait
 
       - name: Build installer
         id: build-installer
@@ -37,16 +64,15 @@ jobs:
           else
             VERSION=$(python -c "import urllib.request, json; print(json.loads(urllib.request.urlopen('https://pypi.org/pypi/xonsh/json').read())['info']['version'])")
           fi
-          xonsh build.xsh build --version "$VERSION"
-          xonsh build.xsh installer --version "$VERSION"
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          xonsh build.xsh build --version "$VERSION" --python-version "${{ matrix.python }}"
+          xonsh build.xsh installer --version "$VERSION" --inno-version "${{ matrix.inno }}" ${{ matrix.extra-args }}
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Upload unsigned installer
-        id: upload-unsigned
+        id: upload
         uses: actions/upload-artifact@v4
         with:
-          name: xonsh-win-x64-setup-unsigned
+          name: xonsh-${{ matrix.variant }}-unsigned
           path: dist/xonsh-*-setup.exe
 
   sign:
@@ -57,7 +83,16 @@ jobs:
       contents: write
 
     steps:
-      - name: Sign installer
+      - name: Look up inno6 artifact ID
+        id: artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ID=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+            --jq '.artifacts[] | select(.name == "xonsh-inno6-unsigned") | .id')
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+
+      - name: Sign installer (inno6)
         id: sign
         uses: signpath/github-action-submit-signing-request@v1
         with:
@@ -65,24 +100,44 @@ jobs:
           organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
           project-slug: xonsh-winget
           signing-policy-slug: release-signing
-          github-artifact-id: ${{ needs.build.outputs.unsigned-artifact-id }}
+          github-artifact-id: ${{ steps.artifact.outputs.id }}
           wait-for-completion: true
           output-artifact-directory: signed/
 
       - name: Upload signed installer
         uses: actions/upload-artifact@v4
         with:
-          name: xonsh-win-x64-setup
+          name: xonsh-inno6-signed
           path: signed/
 
-      - name: Upload to release
+      - name: Upload signed installer to release
         if: github.event_name == 'release'
         run: gh release upload "${{ github.ref_name }}" signed/xonsh-*-setup.exe --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
 
+  upload-legacy:
+    # The inno5 build is unsigned — upload it directly to the release.
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download legacy installer
+        uses: actions/download-artifact@v4
+        with:
+          name: xonsh-inno5-unsigned
+          path: dist/
+
+      - name: Upload to release
+        run: gh release upload "${{ github.ref_name }}" dist/xonsh-*-setup.exe --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+
   manifests:
+    # winget manifest points at the main (inno6, signed) installer.
     needs: [build, sign]
     runs-on: windows-latest
 
@@ -99,7 +154,7 @@ jobs:
       - name: Download signed installer
         uses: actions/download-artifact@v4
         with:
-          name: xonsh-win-x64-setup
+          name: xonsh-inno6-signed
           path: dist/
 
       - name: Generate winget manifests

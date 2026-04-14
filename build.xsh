@@ -105,20 +105,45 @@ def _sha256(filepath):
     return h.hexdigest().upper()
 
 
-def _find_iscc():
-    """Find Inno Setup 6 compiler (ISCC.exe)."""
+INNO_VERSIONS = ('7', '6', '5')
+
+
+def _detect_python_tag(dist_dir):
+    """Return a short Python version tag (e.g. 'py313') for the embedded
+    Python distribution in ``dist_dir``, or None if it can't be detected.
+
+    Looks at ``python*._pth`` (e.g. ``python313._pth`` -> '3.13').
+    """
+    for pth in dist_dir.glob('python*._pth'):
+        stem = pth.stem  # python313
+        digits = ''.join(c for c in stem if c.isdigit())
+        if len(digits) >= 2:
+            return f'py{digits}'
+    return None
+
+
+def _find_iscc(inno_version=None):
+    """Find Inno Setup compiler (ISCC.exe).
+
+    If ``inno_version`` is given (e.g. '5', '6', '7'), only that major
+    version is searched.  Otherwise the newest installed version found
+    in the standard locations is returned (preference: 7 > 6 > 5).
+    """
+    versions = (inno_version,) if inno_version else INNO_VERSIONS
     candidates = []
     for env_var in ('ProgramFiles(x86)', 'ProgramFiles'):
         base = os.environ.get(env_var, '')
         if base:
-            for ver in ('6', '5'):
+            for ver in versions:
                 candidates.append(Path(base) / f'Inno Setup {ver}' / 'ISCC.exe')
     for p in candidates:
         if p.exists():
             return p
-    found = shutil.which('ISCC') or shutil.which('iscc')
-    if found:
-        return Path(found)
+    # Fall back to PATH lookup only if no specific version was requested
+    if inno_version is None:
+        found = shutil.which('ISCC') or shutil.which('iscc')
+        if found:
+            return Path(found)
     return None
 
 
@@ -344,16 +369,26 @@ def build(ctx, ver, arch, pyver, use_git):
 @click.option('--version', 'ver', required=True, help='xonsh version.')
 @click.option('--arch', default='x64', type=click.Choice(['x64', 'x86']),
               help='Target architecture.')
+@click.option('--inno-version', 'inno_ver', default='6',
+              type=click.Choice(list(INNO_VERSIONS)),
+              show_default=True,
+              help='Inno Setup major version to use.')
+@click.option('--include-python-tag', 'include_py_tag', is_flag=True, default=False,
+              help='Include Python version tag in the installer filename '
+                   '(e.g. xonsh-VER-win-x64-py313-setup.exe).')
+@click.option('--include-inno-tag', 'include_inno_tag', is_flag=True, default=False,
+              help='Include Inno Setup version tag in the installer filename '
+                   '(e.g. xonsh-VER-win-x64-inno5-setup.exe).')
 @click.pass_context
-def installer(ctx, ver, arch):
+def installer(ctx, ver, arch, inno_ver, include_py_tag, include_inno_tag):
     """Create Windows installer using Inno Setup."""
-    iscc = _find_iscc()
+    iscc = _find_iscc(inno_ver)
     if iscc is None:
         raise click.ClickException(
-            'Inno Setup compiler (ISCC.exe) not found.\n'
-            'Download: https://github.com/jrsoftware/issrc/releases/download/is-6_7_1/innosetup-6.7.1.exe\n'
-            'All releases: https://jrsoftware.org/isdl.php'
+            f'Inno Setup {inno_ver} compiler (ISCC.exe) not found.\n'
+            'Download: https://jrsoftware.org/isdl.php'
         )
+    click.echo(f'  Using Inno Setup: {iscc}')
 
     source_dir = BUILD_DIR / f'{ver}-{arch}' / 'dist' / 'xonsh'
     if not source_dir.exists():
@@ -363,9 +398,14 @@ def installer(ctx, ver, arch):
         )
 
     DIST_DIR.mkdir(parents=True, exist_ok=True)
-    output_name = f'xonsh-{ver}-win-{arch}-setup'
+    py_tag = _detect_python_tag(source_dir) if include_py_tag else None
+    inno_tag = f'inno{inno_ver}' if include_inno_tag else None
+    tags = '-'.join(t for t in (inno_tag, py_tag) if t)
+    tag_part = f'-{tags}' if tags else ''
+    output_name = f'xonsh-{ver}-win-{arch}{tag_part}-setup'
 
-    click.echo(f'\n==> Creating installer for xonsh {ver} ({arch})\n')
+    info_tags = ', '.join(t for t in (inno_tag, py_tag) if t)
+    click.echo(f'\n==> Creating installer for xonsh {ver} ({arch}{", " + info_tags if info_tags else ""})\n')
 
     # Generate .iss script
     iss_content = _generate_iss(ver, arch, source_dir, DIST_DIR, output_name)
@@ -468,8 +508,12 @@ def validate(ctx, ver):
               help='Target architecture.')
 @click.option('--url', default=None,
               help='Public HTTPS download URL for the installer.')
+@click.option('--inno-version', 'inno_ver', default='6',
+              type=click.Choice(list(INNO_VERSIONS)),
+              show_default=True,
+              help='Inno Setup major version to use.')
 @click.pass_context
-def build_all(ctx, ver, arch, url):
+def build_all(ctx, ver, arch, url, inno_ver):
     """Run full pipeline: build -> installer -> manifest -> validate."""
     if ver is None:
         click.echo('Fetching latest xonsh version from PyPI...')
@@ -485,7 +529,7 @@ def build_all(ctx, ver, arch, url):
     click.echo()
 
     # Step 2 — Inno Setup installer
-    ctx.invoke(installer, ver=ver, arch=arch)
+    ctx.invoke(installer, ver=ver, arch=arch, inno_ver=inno_ver)
     click.echo()
 
     # Step 3 — winget manifests
