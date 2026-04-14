@@ -8,7 +8,7 @@
 #
 # Can also be triggered manually via Actions -> "Continuous build" -> Run workflow.
 
-name: Continuous build
+name: Daily build
 
 on:
   schedule:
