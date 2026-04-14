@@ -301,7 +301,10 @@ def build(ctx, ver, arch, pyver, use_git):
     else:
         click.echo(f'[4/5] Installing xonsh=={ver}...')
         xonsh_spec = f'xonsh[full]=={ver}'
-    $[@(python_exe) -m pip install @(xonsh_spec) --no-warn-script-location --quiet]
+    # --ignore-requires-python: install the requested xonsh version even if
+    # the bundled Python does not satisfy its Requires-Python metadata
+    # (e.g. bundling Python 3.10 for Win 8.1 with a newer xonsh release).
+    $[@(python_exe) -m pip install @(xonsh_spec) --ignore-requires-python --no-warn-script-location --quiet]
 
     # 5. Fix scripts and finalize
     click.echo('[5/5] Finalizing...')
