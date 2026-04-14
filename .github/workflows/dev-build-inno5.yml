@@ -23,7 +23,12 @@ jobs:
         run: pip install .
 
       - name: Install Inno Setup 5
-        run: choco install innosetup --version=5.6.1.20190815 -y --allow-downgrade
+        shell: pwsh
+        run: |
+          $url = "https://files.jrsoftware.org/is/5/innosetup-5.6.1.exe"
+          $exe = "$env:RUNNER_TEMP\innosetup5.exe"
+          Invoke-WebRequest -Uri $url -OutFile $exe
+          Start-Process -FilePath $exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-' -Wait
 
       - name: Build installer from xonsh main
         shell: bash
