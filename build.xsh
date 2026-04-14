@@ -171,7 +171,7 @@ def _fix_scripts(scripts_dir):
         cmd.write_text(f'@"%~dp0..\\python.exe" {args} %*\r\n', encoding='utf-8')
 
 
-def _generate_iss(version, arch, source_dir, output_dir, output_name):
+def _generate_iss(version, arch, source_dir, output_dir, output_name, inno_major=6):
     """Render Inno Setup .iss script from template."""
     license_file = source_dir / 'license.txt'
     return _render(
@@ -183,6 +183,7 @@ def _generate_iss(version, arch, source_dir, output_dir, output_name):
         output_dir=str(output_dir),
         output_filename=output_name,
         license_file=str(license_file) if license_file.exists() else '',
+        inno_major=inno_major,
     )
 
 
@@ -408,7 +409,7 @@ def installer(ctx, ver, arch, inno_ver, include_py_tag, include_inno_tag):
     click.echo(f'\n==> Creating installer for xonsh {ver} ({arch}{", " + info_tags if info_tags else ""})\n')
 
     # Generate .iss script
-    iss_content = _generate_iss(ver, arch, source_dir, DIST_DIR, output_name)
+    iss_content = _generate_iss(ver, arch, source_dir, DIST_DIR, output_name, int(inno_ver))
     iss_path = BUILD_DIR / f'{ver}-{arch}' / 'xonsh_setup.iss'
     iss_path.write_text(iss_content, encoding='utf-8')
     click.echo(f'  ISS script: {iss_path}')

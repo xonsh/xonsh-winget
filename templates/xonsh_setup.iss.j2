@@ -25,9 +25,15 @@ OutputDir={{ output_dir }}
 OutputBaseFilename={{ output_filename }}
 Compression=lzma2
 SolidCompression=yes
+{% if inno_major >= 6 -%}
 WizardStyle=modern
+{% endif -%}
 {% if arch == 'x64' -%}
+{% if inno_major >= 6 -%}
 ArchitecturesAllowed=x64compatible
+{% else -%}
+ArchitecturesAllowed=x64
+{% endif -%}
 {% elif arch == 'arm64' -%}
 ArchitecturesAllowed=arm64
 {% endif -%}
