@@ -9,9 +9,9 @@ Build system for creating a [winget](https://learn.microsoft.com/windows/package
 
 The pipeline bundles xonsh into a portable Python distribution (via the official [Python embeddable package](https://docs.python.org/3/using/windows.html#the-embeddable-package) + Inno Setup) and generates multi-file winget manifest YAML ready for submission to [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs).
 
-## Install xonsh from WinGet
+## Install xonsh
 
-The instructions will be added after xonsh 0.23.0 release.
+Download installer from [Releases page](https://github.com/xonsh/xonsh-winget/releases).
 
 ## Build
 
