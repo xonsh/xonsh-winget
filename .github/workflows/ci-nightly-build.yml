@@ -8,7 +8,7 @@
 #
 # Can also be triggered manually via Actions -> "Continuous build" -> Run workflow.
 
-name: Daily build
+name: ci-nightly-build
 
 on:
   schedule:
@@ -143,7 +143,7 @@ jobs:
           **inno5 (py313)** — for Windows 8.1+ (Python 3.13)."
 
           gh release create continuous \
-            --title "Daily build (xonsh main @ ${SHORT})" \
+            --title "Nightly build (xonsh main @ ${SHORT})" \
             --notes "$BODY" \
             --prerelease \
             --target "${{ github.sha }}" \
