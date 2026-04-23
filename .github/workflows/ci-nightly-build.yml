@@ -25,6 +25,7 @@ jobs:
     outputs:
       sha: ${{ steps.head.outputs.sha }}
       short-sha: ${{ steps.head.outputs.short-sha }}
+      date: ${{ steps.head.outputs.date }}
       skip: ${{ steps.check.outputs.skip }}
 
     steps:
@@ -34,10 +35,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           SHA=$(gh api repos/xonsh/xonsh/commits/main --jq '.sha')
+          DATE=$(gh api repos/xonsh/xonsh/commits/main --jq '.commit.committer.date')
           SHORT="${SHA:0:7}"
-          echo "sha=$SHA"      >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA"         >> "$GITHUB_OUTPUT"
           echo "short-sha=$SHORT" >> "$GITHUB_OUTPUT"
-          echo "xonsh/xonsh HEAD: $SHA"
+          echo "date=$DATE"       >> "$GITHUB_OUTPUT"
+          echo "xonsh/xonsh HEAD: $SHA @ $DATE"
 
       - name: Check if this commit was already built
         id: check
@@ -131,11 +134,12 @@ jobs:
           GH_REPO: ${{ github.repository }}
           SHA: ${{ needs.check.outputs.sha }}
           SHORT: ${{ needs.check.outputs.short-sha }}
+          DATE: ${{ needs.check.outputs.date }}
         run: |
           # Delete the old tag+release so we get a fresh one pointing at the current workflow commit.
           gh release delete continuous --yes --cleanup-tag 2>/dev/null || true
 
-          BODY="Automated build of [xonsh/xonsh@${SHORT}](https://github.com/xonsh/xonsh/commit/${SHA}).
+          BODY="Automated build of [xonsh/xonsh@${SHORT}](https://github.com/xonsh/xonsh/commit/${SHA}) committed on ${DATE}.
 
           Built at ${SHA}
 

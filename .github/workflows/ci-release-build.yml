@@ -63,9 +63,10 @@ jobs:
             echo "Release $VERSION exists — will rebuild and overwrite assets."
           else
             echo "Creating release $VERSION."
+            UPSTREAM_URL="https://github.com/xonsh/xonsh/releases/tag/$VERSION"
             gh release create "$VERSION" \
               --title "$VERSION" \
-              --notes "Installer build for [xonsh/xonsh $VERSION](https://github.com/xonsh/xonsh/releases/tag/$VERSION)." \
+              --notes "Installer build for [xonsh/xonsh $VERSION]($UPSTREAM_URL)." \
               --target "${{ github.sha }}"
           fi
 
